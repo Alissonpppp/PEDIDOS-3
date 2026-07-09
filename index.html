@@ -193,8 +193,8 @@
             <label>Senha</label>
             <input type="password" id="login-pass" placeholder="Digite sua senha">
         </div>
-        <button onclick="login()">Entrar no Sistema</button>
-        <p id="login-error" style="color: var(--danger); text-align: center; font-weight: 600; margin-top: 15px; display: none;">Usuário ou senha incorretos!</p>
+        <button onclick="login()" id="btn-login">Entrar no Sistema</button>
+        <p id="login-error" style="color: var(--danger); text-align: center; font-weight: 600; margin-top: 15px; display: none;"></p>
     </div>
 
     <div id="app-screen">
@@ -375,37 +375,81 @@
     let systemUsers = []; 
     window.isViewingTrash = false; 
 
-    onSnapshot(collection(db, "usuarios"), (snapshot) => {
-        systemUsers = [];
-        snapshot.forEach((doc) => { systemUsers.push({ username: doc.id, ...doc.data() }); });
-        if (currentUser && currentUser.role === 'admin') renderUsersTable();
-    });
+    // Bloqueia quebra de página se faltar permissão
+    function setupListeners() {
+        onSnapshot(collection(db, "usuarios"), 
+            (snapshot) => {
+                systemUsers = [];
+                snapshot.forEach((doc) => { systemUsers.push({ username: doc.id, ...doc.data() }); });
+                if (currentUser && currentUser.role === 'admin') renderUsersTable();
+            },
+            (error) => { console.error("Aviso do Firebase:", error); }
+        );
 
-    onSnapshot(collection(db, "pedidos"), (snapshot) => {
-        orders = [];
-        snapshot.forEach((doc) => { orders.push({ id: doc.id, ...doc.data() }); });
-        orders.sort((a, b) => b.timestamp - a.timestamp);
-        if (currentUser) {
-            calculateMetrics();
-            checkAndCleanupOrders(); 
-            renderOrders();
-        }
-    });
+        onSnapshot(collection(db, "pedidos"), 
+            (snapshot) => {
+                orders = [];
+                snapshot.forEach((doc) => { orders.push({ id: doc.id, ...doc.data() }); });
+                orders.sort((a, b) => b.timestamp - a.timestamp);
+                if (currentUser) {
+                    calculateMetrics();
+                    checkAndCleanupOrders(); 
+                    renderOrders();
+                }
+            },
+            (error) => { console.error("Aviso do Firebase:", error); }
+        );
+    }
+    
+    // Inicia ouvintes de banco de dados
+    setupListeners();
+
+    // Migração de usuários na marra caso o banco perca as permissões
+    async function bootstrapInitialUsers() {
+        try {
+            const usersSnap = await getDocs(collection(db, "usuarios"));
+            if (usersSnap.empty) {
+                await setDoc(doc(db, "usuarios", "mchtoalhas"), { password: "mchtoalhas123", role: "admin" });
+                await setDoc(doc(db, "usuarios", "Vanessa"), { password: "200124", role: "gerente" });
+                await setDoc(doc(db, "usuarios", "Jordan"), { password: "Jordana123", role: "funcionario" });
+            }
+        } catch (e) { console.error("Ignorando criação automática (Firebase bloqueado/sem permissão): ", e); }
+    }
+    bootstrapInitialUsers();
 
     window.login = async function() {
         const usernameInput = document.getElementById('login-user').value.trim();
         const passInput = document.getElementById('login-pass').value.trim();
+        const errorMsg = document.getElementById('login-error');
+        const btn = document.getElementById('btn-login');
+        
         if (!usernameInput) return;
+
+        btn.innerText = "Conectando...";
+        btn.disabled = true;
 
         try {
             const userDoc = await getDoc(doc(db, "usuarios", usernameInput));
             if (userDoc.exists() && userDoc.data().password === passInput) {
                 currentUser = { username: usernameInput, role: userDoc.data().role };
+                errorMsg.style.display = 'none';
                 setupDashboardLayout();
             } else {
-                document.getElementById('login-error').style.display = 'block';
+                errorMsg.innerText = "Usuário ou senha incorretos!";
+                errorMsg.style.display = 'block';
             }
-        } catch (error) { alert("Erro ao conectar no sistema: " + error.message); }
+        } catch (error) { 
+            // O erro capturado na sua tela vai estourar aqui de forma controlada agora.
+            if(error.code === 'permission-denied') {
+                errorMsg.innerText = "ERRO: O Firebase bloqueou seu banco de dados (Regras expiradas). Acesse o Firebase Console para liberar.";
+            } else {
+                errorMsg.innerText = "Erro ao conectar: " + error.message;
+            }
+            errorMsg.style.display = 'block';
+        }
+        
+        btn.innerText = "Entrar no Sistema";
+        btn.disabled = false;
     };
 
     function setupDashboardLayout() {
@@ -457,7 +501,7 @@
         if (currentUser.role !== 'admin') return;
         if (username === currentUser.username) return alert("Você não pode excluir a si mesmo!");
         if (confirm(`Excluir o acesso de ${username}?`)) {
-            try { await deleteDoc(doc(db, "usuarios", username)); } catch (error) {}
+            try { await deleteDoc(doc(db, "usuarios", username)); } catch (error) { alert("Erro: " + error.message); }
         }
     };
 
@@ -594,7 +638,7 @@
             alert('Sucesso! Pedido enviado para a lista.');
             
         } catch (error) {
-            alert("Erro do Sistema: " + error.message);
+            alert("Erro do Sistema ao gravar pedido: " + error.message);
         }
     };
 
@@ -604,11 +648,11 @@
         if (!order) return;
         if (order.inTrash) {
             if (confirm("Deseja EXCLUIR DEFINITIVAMENTE este pedido?")) {
-                try { await deleteDoc(doc(db, "pedidos", id)); } catch (error) {}
+                try { await deleteDoc(doc(db, "pedidos", id)); } catch (error) { alert(error.message); }
             }
         } else {
             if (confirm("Deseja enviar este pedido para a Lixeira?")) {
-                try { await updateDoc(doc(db, "pedidos", id), { inTrash: true, trashTimestamp: Date.now(), oldStatus: order.status, status: 'Lixeira' }); } catch (error) {}
+                try { await updateDoc(doc(db, "pedidos", id), { inTrash: true, trashTimestamp: Date.now(), oldStatus: order.status, status: 'Lixeira' }); } catch (error) { alert(error.message); }
             }
         }
     };
@@ -617,7 +661,7 @@
         if (currentUser.role !== 'gerente' && currentUser.role !== 'admin') return;
         const order = orders.find(o => o.id === id);
         if (!order) return;
-        try { await updateDoc(doc(db, "pedidos", id), { inTrash: false, trashTimestamp: null, status: order.oldStatus || 'Pendente' }); } catch (error) {}
+        try { await updateDoc(doc(db, "pedidos", id), { inTrash: false, trashTimestamp: null, status: order.oldStatus || 'Pendente' }); } catch (error) { alert(error.message); }
     };
 
     window.applyFilters = function() { renderOrders(); };
@@ -769,14 +813,20 @@
             if(details === null) { renderOrders(); return; }
             details = details || 'Não especificado';
         }
-        await updateDoc(orderRef, { status: newStatus, partialDetails: details });
+        try {
+            await updateDoc(orderRef, { status: newStatus, partialDetails: details });
+        } catch(error) {
+            alert(error.message);
+        }
     };
 
     window.handleJordanStatus = async function(id, value) {
         const partialDiv = document.getElementById(`jordan-partial-div-${id}`);
         if (value === 'Entregue completo' || value === 'Pedido separado') {
             partialDiv.style.display = 'none';
-            await updateDoc(doc(db, "pedidos", id), { status: value, partialDetails: '' });
+            try {
+                await updateDoc(doc(db, "pedidos", id), { status: value, partialDetails: '' });
+            } catch(error) { alert(error.message); }
             document.getElementById(`jordan-select-${id}`).value = ''; 
         } else if (value === 'Entregue parcial') {
             partialDiv.style.display = 'block';
@@ -788,7 +838,9 @@
     window.confirmJordanPartial = async function(id) {
         const textInput = document.getElementById(`jordan-text-${id}`).value;
         if (!textInput.trim()) return alert('Descreva o que foi entregue para continuar.');
-        await updateDoc(doc(db, "pedidos", id), { status: 'Entregue parcial', partialDetails: textInput });
+        try {
+            await updateDoc(doc(db, "pedidos", id), { status: 'Entregue parcial', partialDetails: textInput });
+        } catch(error) { alert(error.message); }
     };
     
     if(!currentUser) {
