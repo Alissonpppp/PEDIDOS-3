@@ -6,7 +6,6 @@
     <title>Sistema de Pedidos</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        /* Variáveis de Cores Modernas */
         :root {
             --primary: #4F46E5; 
             --primary-hover: #4338CA;
@@ -177,7 +176,6 @@
         .role-gerente { background: #E0E7FF; color: #3730A3; }
         .role-funcionario { background: #D1FAE5; color: #065F46; }
         
-        /* Flexbox pra organizar selects de criação */
         .flex-row { display: flex; gap: 15px; flex-wrap: wrap; }
         .flex-row > div { flex: 1; min-width: 200px; }
     </style>
@@ -341,6 +339,10 @@
                     </select>
                 </div>
                 <div>
+                    <label>Data</label>
+                    <input type="date" id="filter-date" onchange="applyFilters()">
+                </div>
+                <div>
                     <button class="danger" style="padding: 10px;" onclick="clearFilters()">Limpar Filtros</button>
                 </div>
             </div>
@@ -373,14 +375,12 @@
     let systemUsers = []; 
     window.isViewingTrash = false; 
 
-    // Ouve Usuários
     onSnapshot(collection(db, "usuarios"), (snapshot) => {
         systemUsers = [];
         snapshot.forEach((doc) => { systemUsers.push({ username: doc.id, ...doc.data() }); });
         if (currentUser && currentUser.role === 'admin') renderUsersTable();
     });
 
-    // Ouve Pedidos
     onSnapshot(collection(db, "pedidos"), (snapshot) => {
         orders = [];
         snapshot.forEach((doc) => { orders.push({ id: doc.id, ...doc.data() }); });
@@ -666,7 +666,6 @@
 
             const dataCriacao = new Date(order.timestamp).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
             
-            // Lógica para verificar se o pedido está Atrasado ou No Prazo (Apenas se não finalizado/cancelado)
             let delayBadge = '';
             if (!order.inTrash && order.status !== 'Entregue completo' && order.status !== 'Cancelada' && order.status !== 'Entregue parcial') {
                 let isDelayed = false;
@@ -676,7 +675,7 @@
 
                 if (shiftValue === 'Manhã' && currentHour >= 12) isDelayed = true;
                 if (shiftValue === 'Tarde' && currentHour >= 18) isDelayed = true;
-                if (shiftValue === 'Agora' && (now.getTime() - order.timestamp) > 3600000) isDelayed = true; // Passou 1 hora
+                if (shiftValue === 'Agora' && (now.getTime() - order.timestamp) > 3600000) isDelayed = true;
 
                 if (isDelayed) {
                     delayBadge = '<span class="status-badge" style="background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5;">🔴 Atrasado</span>';
@@ -756,35 +755,3 @@
         let details = '';
         if (newStatus === 'Entregue parcial') {
             details = prompt('Descreva o que foi entregue (Entrega Parcial):');
-            if(details === null) { renderOrders(); return; }
-            details = details || 'Não especificado';
-        }
-        await updateDoc(orderRef, { status: newStatus, partialDetails: details });
-    };
-
-    window.handleJordanStatus = async function(id, value) {
-        const partialDiv = document.getElementById(`jordan-partial-div-${id}`);
-        if (value === 'Entregue completo' || value === 'Pedido separado') {
-            partialDiv.style.display = 'none';
-            await updateDoc(doc(db, "pedidos", id), { status: value, partialDetails: '' });
-            document.getElementById(`jordan-select-${id}`).value = ''; 
-        } else if (value === 'Entregue parcial') {
-            partialDiv.style.display = 'block';
-        } else {
-            partialDiv.style.display = 'none';
-        }
-    };
-
-    window.confirmJordanPartial = async function(id) {
-        const textInput = document.getElementById(`jordan-text-${id}`).value;
-        if (!textInput.trim()) return alert('Descreva o que foi entregue para continuar.');
-        await updateDoc(doc(db, "pedidos", id), { status: 'Entregue parcial', partialDetails: textInput });
-    };
-    
-    if(!currentUser) {
-        document.getElementById('main-container').style.maxWidth = '400px';
-        document.getElementById('main-container').style.marginTop = '4rem';
-    }
-</script>
-</body>
-</html>
