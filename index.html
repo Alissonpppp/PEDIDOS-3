@@ -449,6 +449,7 @@
             await setDoc(doc(db, "usuarios", name), { password: pass, role: role });
             document.getElementById('new-user-name').value = '';
             document.getElementById('new-user-pass').value = '';
+            alert("Usuário criado com sucesso!");
         } catch (error) { alert("Erro ao criar: " + error.message); }
     };
 
@@ -558,33 +559,43 @@
     }
 
     window.createOrder = async function() {
-        if (currentUser.role !== 'gerente' && currentUser.role !== 'admin') return;
+        try {
+            if (currentUser.role !== 'gerente' && currentUser.role !== 'admin') {
+                alert("Ação bloqueada: Seu usuário não tem permissão para criar pedidos.");
+                return;
+            }
 
-        const customer = document.getElementById('new-customer').value;
-        const shift = document.getElementById('new-shift').value;
-        const text = document.getElementById('new-text').value;
-        const obs = document.getElementById('new-obs').value;
+            const customer = document.getElementById('new-customer').value;
+            const shift = document.getElementById('new-shift').value;
+            const text = document.getElementById('new-text').value;
+            const obs = document.getElementById('new-obs').value;
 
-        if (!customer || !text) {
-            alert('Por favor, preencha o nome do cliente e o pedido.');
-            return;
+            if (!customer || !text) {
+                alert('Aviso: Por favor, preencha o nome do cliente e o que deve ser entregue.');
+                return;
+            }
+
+            await addDoc(collection(db, "pedidos"), {
+                customer: customer,
+                shift: shift,
+                text: text,
+                obs: obs,
+                status: 'Pendente',
+                partialDetails: '',
+                inTrash: false,
+                timestamp: Date.now()
+            });
+
+            document.getElementById('new-customer').value = '';
+            document.getElementById('new-shift').value = 'Agora';
+            document.getElementById('new-text').value = '';
+            document.getElementById('new-obs').value = '';
+            
+            alert('Sucesso! Pedido enviado para a lista.');
+            
+        } catch (error) {
+            alert("Erro do Sistema: " + error.message);
         }
-
-        await addDoc(collection(db, "pedidos"), {
-            customer: customer,
-            shift: shift,
-            text: text,
-            obs: obs,
-            status: 'Pendente',
-            partialDetails: '',
-            inTrash: false,
-            timestamp: Date.now()
-        });
-
-        document.getElementById('new-customer').value = '';
-        document.getElementById('new-shift').value = 'Agora';
-        document.getElementById('new-text').value = '';
-        document.getElementById('new-obs').value = '';
     };
 
     window.deleteOrder = async function(id) {
@@ -755,3 +766,35 @@
         let details = '';
         if (newStatus === 'Entregue parcial') {
             details = prompt('Descreva o que foi entregue (Entrega Parcial):');
+            if(details === null) { renderOrders(); return; }
+            details = details || 'Não especificado';
+        }
+        await updateDoc(orderRef, { status: newStatus, partialDetails: details });
+    };
+
+    window.handleJordanStatus = async function(id, value) {
+        const partialDiv = document.getElementById(`jordan-partial-div-${id}`);
+        if (value === 'Entregue completo' || value === 'Pedido separado') {
+            partialDiv.style.display = 'none';
+            await updateDoc(doc(db, "pedidos", id), { status: value, partialDetails: '' });
+            document.getElementById(`jordan-select-${id}`).value = ''; 
+        } else if (value === 'Entregue parcial') {
+            partialDiv.style.display = 'block';
+        } else {
+            partialDiv.style.display = 'none';
+        }
+    };
+
+    window.confirmJordanPartial = async function(id) {
+        const textInput = document.getElementById(`jordan-text-${id}`).value;
+        if (!textInput.trim()) return alert('Descreva o que foi entregue para continuar.');
+        await updateDoc(doc(db, "pedidos", id), { status: 'Entregue parcial', partialDetails: textInput });
+    };
+    
+    if(!currentUser) {
+        document.getElementById('main-container').style.maxWidth = '400px';
+        document.getElementById('main-container').style.marginTop = '4rem';
+    }
+</script>
+</body>
+</html>
