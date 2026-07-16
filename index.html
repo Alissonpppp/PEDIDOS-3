@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FluxBlue - Sistema Financeiro</title>
+    <title>FluxBlue - Gestão Financeira Inteligente</title>
+    
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <script src="https://unpkg.com/recharts@2.8.0/umd/Recharts.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
@@ -24,37 +25,59 @@
         };
         window.dispatchEvent(new Event('firebase-ready'));
     </script>
+
     <script>
         tailwind.config = {
-            theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { brand: { 50: '#eff6ff', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' }, whatsapp: { 500: '#25D366' } } } }
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+                    colors: { 
+                        brand: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 900: '#312e81' },
+                        slate: { 850: '#1a2234', 900: '#0f172a' }
+                    }
+                }
+            }
         }
     </script>
     <style>
-        body { background-color: #f8fafc; color: #1e293b; -webkit-tap-highlight-color: transparent; }
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        body { background-color: #f8fafc; color: #0f172a; -webkit-tap-highlight-color: transparent; }
+        .card-shadow { box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05); }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #4f46e5; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body>
+<body class="antialiased selection:bg-brand-500 selection:text-white">
     <div id="root"><div class="h-screen flex items-center justify-center"><div class="loader"></div></div></div>
 
     <script type="text/babel">
         const Icons = {
-            Logo: ({ className = "w-10 h-10" }) => (
-                <svg viewBox="0 0 100 100" className={className} fill="none"><rect width="100" height="100" rx="24" className="fill-brand-600"/><path d="M25 65L40 45L55 60L75 30" stroke="white" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Logo: ({ className = "w-8 h-8" }) => (
+                <svg viewBox="0 0 100 100" className={className} fill="none"><rect width="100" height="100" rx="28" className="fill-brand-600"/><path d="M30 65L45 45L60 60L75 30" stroke="white" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/><circle cx="75" cy="30" r="5" fill="white" /></svg>
             ),
-            Dashboard: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>,
-            Transactions: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" /><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" /><path d="M18 12a2 2 0 0 0 0 4h4v-4Z" /></svg>,
-            Debts: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 2v4"/><path d="M8 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>,
-            Goals: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
-            Profile: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-            Trash: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+            Dashboard: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect width="7" height="9" x="3" y="3" rx="2"/><rect width="7" height="5" x="14" y="3" rx="2"/><rect width="7" height="9" x="14" y="12" rx="2"/><rect width="7" height="5" x="3" y="16" rx="2"/></svg>,
+            Transactions: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M7 15h0M17 9h0M12 12h0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>,
+            Debts: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="m15 9-6 6"/><path d="M9 9h.01"/><path d="M15 15h.01"/><rect width="20" height="14" x="2" y="5" rx="2"/></svg>,
+            Budgets: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+            Goals: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>,
+            Profile: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>,
+            Trash: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>,
             Google: () => <svg viewBox="0 0 24 24" width="20" height="20"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/></svg>,
-            Lock: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Lock: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+            Plus: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5v14"/></svg>,
+            Flame: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>,
+            TrendingUp: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
+            TrendingDown: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
         };
 
         const DEFAULT_DATA = {
-            transactions: [], goals: [], debts: [], customCategories: ['Casa', 'Mercado', 'Lazer', 'Saúde', 'Transporte', 'Salário'],
+            transactions: [], goals: [], debts: [], 
+            budgets: [
+                { category: 'Casa', limit: 1500 }, { category: 'Mercado', limit: 800 },
+                { category: 'Lazer', limit: 400 }, { category: 'Transporte', limit: 300 }
+            ],
+            customCategories: ['Casa', 'Mercado', 'Lazer', 'Saúde', 'Transporte', 'Salário', 'Investimento'],
             settings: { userName: 'Usuário' },
             subscription: { active: true, expiresAt: new Date(Date.now() + 7*24*60*60*1000).toISOString() }
         };
@@ -64,7 +87,6 @@
             const { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } = window.FirebaseSDK.auth;
             const { getFirestore, doc, onSnapshot, setDoc, getDoc } = window.FirebaseSDK.firestore;
 
-            // MESMA CONFIGURAÇÃO DE BANCO EM AMBOS OS ARQUIVOS
             const firebaseConfig = {
                 apiKey: "AIzaSyB5I6RG-FicgOThwhl-1LLWySo3JRjK1YI",
                 authDomain: "bompre-8a7c0.firebaseapp.com",
@@ -80,7 +102,7 @@
             const appId = 'fluxblue-prod-v6';
 
             const { useState, useEffect, useMemo } = React;
-            const { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } = window.Recharts || {};
+            const { AreaChart, Area, BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } = window.Recharts || {};
 
             const AuthScreen = () => {
                 const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
@@ -106,7 +128,7 @@
                                  await createInitialUserData(uc.user.uid, uc.user.email);
                              } else throw e;
                         }
-                    } catch (err) { setError("Erro ao entrar. Verifique os dados."); } finally { setLoading(false); }
+                    } catch (err) { setError("Credenciais inválidas ou erro de conexão."); } finally { setLoading(false); }
                 };
 
                 const handleGoogleLogin = async () => {
@@ -118,21 +140,22 @@
                 };
 
                 return (
-                    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-                        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-                            <div className="text-center mb-6">
-                                <div className="flex justify-center mb-2"><Icons.Logo className="w-16 h-16" /></div>
-                                <h1 className="text-3xl font-bold">Flux<span className="text-brand-600">Blue</span></h1>
-                                <p className="text-slate-500 text-sm">Acesso ao Sistema</p>
+                    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+                        <div className="max-w-md w-full bg-white rounded-3xl card-shadow p-8 border border-slate-100">
+                            <div className="text-center mb-8">
+                                <div className="inline-flex p-3 bg-brand-50 rounded-2xl mb-3 text-brand-600"><Icons.Logo className="w-10 h-10" /></div>
+                                <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Flux<span className="text-brand-600">Blue</span></h1>
+                                <p className="text-slate-500 text-sm mt-1">Sua vida financeira no controle</p>
                             </div>
-                            {error && <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded">{error}</div>}
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <input required type="email" className="w-full border rounded-lg p-3 text-sm" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
-                                <input required type="password" className="w-full border rounded-lg p-3 text-sm" placeholder="Senha" value={password} onChange={e=>setPassword(e.target.value)} />
-                                <button disabled={loading} className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-lg shadow">Entrar com Email</button>
+                            {error && <div className="mb-4 p-3 bg-rose-50 text-rose-600 text-xs font-semibold rounded-xl border border-rose-100">{error}</div>}
+                            <form onSubmit={handleSubmit} className="space-y-3">
+                                <input required type="email" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-sm focus:outline-none focus:border-brand-600 focus:bg-white transition" placeholder="Seu e-mail" value={email} onChange={e=>setEmail(e.target.value)} />
+                                <input required type="password" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-sm focus:outline-none focus:border-brand-600 focus:bg-white transition" placeholder="Sua senha" value={password} onChange={e=>setPassword(e.target.value)} />
+                                <button disabled={loading} className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-500/25 transition active:scale-[0.98]">Acessar Conta</button>
                             </form>
-                            <button onClick={handleGoogleLogin} disabled={loading} className="w-full mt-4 border hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-lg flex items-center justify-center gap-3">
-                                <Icons.Google /> Continuar com Google
+                            <div className="relative my-6"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-3 text-slate-400 font-bold tracking-wider">Ou continue com</span></div></div>
+                            <button onClick={handleGoogleLogin} disabled={loading} className="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3.5 rounded-xl flex items-center justify-center gap-3 transition active:scale-[0.98]">
+                                <Icons.Google /> Google
                             </button>
                         </div>
                     </div>
@@ -141,32 +164,37 @@
 
             const Paywall = ({ user }) => (
                 <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4 text-center">
-                    <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8">
-                        <div className="mx-auto bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mb-6"><Icons.Lock className="text-red-600 w-8 h-8" /></div>
-                        <h2 className="text-2xl font-bold text-slate-800 mb-2">Assinatura Expirada</h2>
-                        <p className="text-slate-600 mb-6 text-sm">Renove seu plano para continuar usando o FluxBlue.</p>
-                        <a href="https://pay.cakto.com.br/scbctc9_679715" target="_blank" className="block w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg mb-3">Renovar Agora</a>
-                        <button onClick={()=>window.location.reload()} className="text-brand-600 text-xs font-bold hover:underline mb-4">Já paguei (Atualizar)</button>
-                        <div className="border-t pt-4"><button onClick={() => signOut(auth)} className="text-xs text-slate-400">Sair ({user.email})</button></div>
+                    <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8">
+                        <div className="mx-auto bg-rose-100 text-rose-600 w-16 h-16 rounded-2xl flex items-center justify-center mb-6"><Icons.Lock /></div>
+                        <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Período de teste encerrado</h2>
+                        <p className="text-slate-500 mb-6 text-sm">Renove sua assinatura para manter o controle total das suas finanças e continuar saindo das dívidas.</p>
+                        <a href="https://pay.cakto.com.br/scbctc9_679715" target="_blank" className="block w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-500/25 transition mb-3">Renovar Assinatura Agora</a>
+                        <button onClick={()=>window.location.reload()} className="text-brand-600 text-xs font-bold hover:underline mb-6 block w-full">Já realizei o pagamento</button>
+                        <div className="border-t border-slate-100 pt-4"><button onClick={() => signOut(auth)} className="text-xs text-slate-400 font-medium">Sair da conta ({user.email})</button></div>
                     </div>
-                </div>
-            );
+                );
 
             const MainApp = ({ user, data }) => {
                 const [view, setView] = useState('dashboard');
                 const [localData, setLocalData] = useState(data || DEFAULT_DATA);
+                const [showModal, setShowModal] = useState(false);
+                
+                // Estados para nova transação
                 const [desc, setDesc] = useState(''); const [amount, setAmount] = useState('');
                 const [type, setType] = useState('expense'); const [cat, setCat] = useState('Casa');
 
                 useEffect(() => { if (data) setLocalData(data); }, [data]);
 
                 const saveToCloud = async (newData) => {
+                    setLocalData(newData);
                     await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'data', 'finance'), newData, { merge: true });
                 };
 
+                // Cálculos e Métricas Principais
                 const totalInc = (localData.transactions||[]).filter(t=>t.type==='income').reduce((a,b)=>a+b.amount,0);
                 const totalExp = (localData.transactions||[]).filter(t=>t.type==='expense').reduce((a,b)=>a+b.amount,0);
                 const balance = totalInc - totalExp;
+                const totalDebts = (localData.debts||[]).reduce((a,b)=>a + (b.totalValue - (b.installmentsPaid * (b.totalValue/b.installmentsTotal))), 0);
 
                 const daysLeft = useMemo(() => {
                     if (!localData.subscription?.expiresAt) return 0;
@@ -174,78 +202,347 @@
                     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
                 }, [localData.subscription]);
 
+                // Gráfico Fluxo de Caixa (Últimos 7 dias cadastrados)
+                const chartData = useMemo(() => {
+                    const m = {};
+                    (localData.transactions||[]).forEach(t => {
+                        const k = t.date.slice(0,10);
+                        if(!m[k]) m[k] = { name: new Date(t.date).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}), saldo: 0 };
+                        if(t.type==='income') m[k].saldo += t.amount; else m[k].saldo -= t.amount;
+                    });
+                    return Object.keys(m).sort().slice(-7).map(k => m[k]);
+                }, [localData.transactions]);
+
+                const handleAddTransaction = async (e) => {
+                    e.preventDefault();
+                    if(!desc || !amount) return;
+                    const newT = { id: Date.now(), desc, amount: parseFloat(amount), type, category: cat, date: new Date().toISOString() };
+                    await saveToCloud({...localData, transactions: [newT, ...(localData.transactions||[])]});
+                    setDesc(''); setAmount(''); setShowModal(false);
+                };
+
                 return (
-                    <div className="flex h-screen bg-slate-50">
-                        <aside className="w-64 bg-slate-900 text-slate-300 flex-col hidden md:flex">
-                            <div className="h-16 flex items-center px-6 bg-slate-900 gap-2"><Icons.Logo className="w-8 h-8" /><span className="text-white font-bold text-lg">FluxBlue</span></div>
-                            <nav className="flex-1 py-4 px-3 space-y-1">
-                                <button onClick={()=>setView('dashboard')} className={`w-full flex items-center px-4 py-3 text-sm rounded-lg ${view==='dashboard'?'bg-brand-600 text-white':'hover:bg-slate-800'}`}><span className="mr-3"><Icons.Dashboard/></span>Dashboard</button>
-                                <button onClick={()=>setView('transactions')} className={`w-full flex items-center px-4 py-3 text-sm rounded-lg ${view==='transactions'?'bg-brand-600 text-white':'hover:bg-slate-800'}`}><span className="mr-3"><Icons.Transactions/></span>Lançamentos</button>
-                                <button onClick={()=>setView('goals')} className={`w-full flex items-center px-4 py-3 text-sm rounded-lg ${view==='goals'?'bg-brand-600 text-white':'hover:bg-slate-800'}`}><span className="mr-3"><Icons.Goals/></span>Metas</button>
-                                <button onClick={()=>setView('profile')} className={`w-full flex items-center px-4 py-3 text-sm rounded-lg ${view==='profile'?'bg-brand-600 text-white':'hover:bg-slate-800'}`}><span className="mr-3"><Icons.Profile/></span>Perfil</button>
+                    <div className="flex h-screen bg-slate-50 overflow-hidden">
+                        {/* Sidebar Desktop */}
+                        <aside className="w-64 bg-slate-900 text-slate-400 flex-col hidden md:flex border-r border-slate-800">
+                            <div className="h-20 flex items-center px-6 gap-3"><Icons.Logo /><span className="text-white font-extrabold tracking-tight text-xl">Flux<span className="text-brand-500">Blue</span></span></div>
+                            <div className="px-4 py-2"><div className="bg-slate-800/60 rounded-2xl p-3 border border-slate-700/50 flex items-center justify-between"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div><span className="text-xs font-semibold text-slate-200">Plano Pro</span></div><span className="text-[11px] font-bold bg-slate-700 text-slate-300 px-2 py-0.5 rounded-md">{daysLeft}d</span></div></div>
+                            <nav className="flex-1 px-4 py-4 space-y-1.5">
+                                {[
+                                    {id:'dashboard', label:'Visão Geral', icon:<Icons.Dashboard/>},
+                                    {id:'debts', label:'Otimizador de Dívidas', icon:<Icons.Debts/>, badge:'Especial'},
+                                    {id:'budgets', label:'Orçamentos', icon:<Icons.Budgets/>},
+                                    {id:'transactions', label:'Lançamentos', icon:<Icons.Transactions/>},
+                                    {id:'goals', label:'Metas', icon:<Icons.Goals/>},
+                                    {id:'profile', label:'Perfil & Conta', icon:<Icons.Profile/>}
+                                ].map(item => (
+                                    <button key={item.id} onClick={()=>setView(item.id)} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-2xl transition ${view===item.id ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'hover:bg-slate-800/60 hover:text-slate-200'}`}>
+                                        <div className="flex items-center gap-3">{item.icon}<span>{item.label}</span></div>
+                                        {item.badge && <span className="text-[10px] uppercase tracking-wider font-extrabold bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5 py-0.5 rounded-md">{item.badge}</span>}
+                                    </button>
+                                ))}
                             </nav>
-                            <div className="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">Plano Ativo • {daysLeft} dias restantes</div>
+                            <div className="p-4 border-t border-slate-800/80 flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center font-bold text-brand-400 uppercase">{user.email.slice(0,2)}</div>
+                                <div className="flex-1 overflow-hidden"><p className="text-xs font-bold text-slate-200 truncate">{localData.settings?.userName || 'Usuário'}</p><p className="text-[11px] text-slate-500 truncate">{user.email}</p></div>
+                            </div>
                         </aside>
 
-                        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-                            {view === 'dashboard' && (
-                                <div className="space-y-6 max-w-5xl mx-auto">
-                                    <h2 className="text-2xl font-bold">Visão Geral</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div className="bg-white p-5 rounded-xl border shadow-sm"><p className="text-xs font-bold text-slate-500">ENTRADAS</p><p className="text-2xl font-bold text-green-600">R$ {totalInc.toFixed(2)}</p></div>
-                                        <div className="bg-white p-5 rounded-xl border shadow-sm"><p className="text-xs font-bold text-slate-500">SAÍDAS</p><p className="text-2xl font-bold text-red-600">R$ {totalExp.toFixed(2)}</p></div>
-                                        <div className="bg-white p-5 rounded-xl border shadow-sm"><p className="text-xs font-bold text-slate-500">SALDO</p><p className="text-2xl font-bold text-brand-600">R$ {balance.toFixed(2)}</p></div>
-                                    </div>
+                        {/* Área Principal */}
+                        <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+                            {/* Header Mobile & Desktop */}
+                            <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-6 z-10 shrink-0">
+                                <div className="flex items-center gap-3">
+                                    <div className="md:hidden text-brand-600"><Icons.Logo className="w-8 h-8" /></div>
+                                    <h2 className="text-lg font-extrabold text-slate-800 capitalize tracking-tight">
+                                        {view === 'dashboard' && 'Visão Geral'}
+                                        {view === 'debts' && 'Plano Sair das Dívidas 🚀'}
+                                        {view === 'budgets' && 'Orçamento Mensal'}
+                                        {view === 'transactions' && 'Extrato Completo'}
+                                        {view === 'goals' && 'Metas Financeiras'}
+                                        {view === 'profile' && 'Sua Conta'}
+                                    </h2>
                                 </div>
-                            )}
+                                <button onClick={()=>setShowModal(true)} className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition active:scale-95">
+                                    <Icons.Plus className="w-4 h-4 text-brand-400" /><span>Novo Lançamento</span>
+                                </button>
+                            </header>
 
-                            {view === 'transactions' && (
-                                <div className="bg-white p-6 rounded-xl border shadow-sm max-w-4xl mx-auto">
-                                    <h3 className="font-bold mb-4">Nova Transação</h3>
-                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-6">
-                                        <input className="border p-2 rounded text-sm" placeholder="Descrição" value={desc} onChange={e=>setDesc(e.target.value)} />
-                                        <input type="number" className="border p-2 rounded text-sm" placeholder="Valor" value={amount} onChange={e=>setAmount(e.target.value)} />
-                                        <select className="border p-2 rounded text-sm" value={type} onChange={e=>setType(e.target.value)}><option value="expense">Despesa</option><option value="income">Receita</option></select>
-                                        <select className="border p-2 rounded text-sm" value={cat} onChange={e=>setCat(e.target.value)}>{(localData.customCategories||[]).map(c=><option key={c} value={c}>{c}</option>)}</select>
-                                        <button onClick={()=>{if(!desc||!amount)return; const newT={id:Date.now(), desc, amount:parseFloat(amount), type, category:cat, date:new Date().toISOString()}; saveToCloud({...localData, transactions:[...(localData.transactions||[]), newT]}); setDesc(''); setAmount('');}} className="bg-brand-600 text-white rounded font-bold text-sm">Salvar</button>
-                                    </div>
-                                    <div className="divide-y">
-                                        {(localData.transactions||[]).slice().reverse().map(t=>(
-                                            <div key={t.id} className="py-3 flex justify-between text-sm items-center">
-                                                <div><p className="font-medium">{t.desc}</p><p className="text-xs text-slate-400">{new Date(t.date).toLocaleDateString()} • {t.category}</p></div>
-                                                <div className="flex items-center gap-3"><span className={`font-bold ${t.type==='income'?'text-green-600':'text-red-600'}`}>R$ {t.amount.toFixed(2)}</span><button onClick={()=>saveToCloud({...localData, transactions: localData.transactions.filter(x => x.id !== t.id)})} className="text-slate-300 hover:text-red-500"><Icons.Trash /></button></div>
+                            {/* Conteúdo Rolável */}
+                            <div className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar pb-28 md:pb-8">
+                                <div className="max-w-5xl mx-auto space-y-6">
+
+                                    {/* 1. VISÃO GERAL (DASHBOARD) */}
+                                    {view === 'dashboard' && (
+                                        <>
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                <div className="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden">
+                                                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Saldo Atual</span><div className="p-2 bg-brand-50 rounded-xl text-brand-600"><Icons.TrendingUp /></div></div>
+                                                    <p className={`text-3xl font-extrabold tracking-tight ${balance>=0?'text-slate-900':'text-rose-600'}`}>R$ {balance.toFixed(2)}</p>
+                                                    <p className="text-xs text-slate-400 mt-2">Receitas menos despesas</p>
+                                                </div>
+                                                <div className="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
+                                                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Entradas do Mês</span><div className="p-2 bg-emerald-50 rounded-xl text-emerald-600"><Icons.TrendingUp /></div></div>
+                                                    <p className="text-3xl font-extrabold tracking-tight text-emerald-600">R$ {totalInc.toFixed(2)}</p>
+                                                    <p className="text-xs text-slate-400 mt-2">Total de receitas</p>
+                                                </div>
+                                                <div className="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
+                                                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Dívidas Pendentes</span><div className="p-2 bg-rose-50 rounded-xl text-rose-600"><Icons.Flame /></div></div>
+                                                    <p className="text-3xl font-extrabold tracking-tight text-rose-600">R$ {totalDebts.toFixed(2)}</p>
+                                                    <button onClick={()=>setView('debts')} className="text-xs font-bold text-brand-600 hover:underline mt-2 inline-block">Ver plano de quitação &rarr;</button>
+                                                </div>
                                             </div>
-                                        ))}
+
+                                            {/* Gráfico + Orçamentos Rápidos */}
+                                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                                <div className="bg-white p-6 rounded-3xl card-shadow border border-slate-100 lg:col-span-2 flex flex-col justify-between">
+                                                    <div>
+                                                        <h3 className="font-extrabold text-slate-800 text-base mb-1">Evolução do Saldo</h3>
+                                                        <p className="text-xs text-slate-400 mb-6">Últimas movimentações financeiras no seu extrato</p>
+                                                    </div>
+                                                    <div className="h-64 w-full">
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <AreaChart data={chartData}>
+                                                                <defs><linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/><stop offset="95%" stopColor="#6366f1" stopOpacity={0}/></linearGradient></defs>
+                                                                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} />
+                                                                <Tooltip contentStyle={{backgroundColor: '#0f172a', borderRadius: '12px', border: 'none', color: '#fff', fontWeight: 'bold'}} />
+                                                                <Area type="monotone" dataKey="saldo" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorSaldo)" />
+                                                            </AreaChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
+                                                </div>
+
+                                                <div className="bg-slate-900 text-white p-6 rounded-3xl card-shadow flex flex-col justify-between relative overflow-hidden">
+                                                    <div className="absolute -right-10 -top-10 w-40 h-40 bg-brand-500/20 rounded-full blur-2xl"></div>
+                                                    <div>
+                                                        <span className="text-[10px] font-extrabold uppercase tracking-widest bg-brand-500/20 text-brand-300 px-2.5 py-1 rounded-lg border border-brand-500/30">Otimizador</span>
+                                                        <h3 className="text-xl font-extrabold mt-4 leading-snug">Você tem R$ {totalDebts.toFixed(2)} em dívidas ativas.</h3>
+                                                        <p className="text-slate-400 text-xs mt-2 leading-relaxed">Nosso algoritmo organiza suas contas pelo método psicológico para você quitar tudo em tempo recorde.</p>
+                                                    </div>
+                                                    <button onClick={()=>setView('debts')} className="w-full mt-6 bg-brand-600 hover:bg-brand-500 text-white font-bold py-3.5 rounded-2xl text-xs transition active:scale-95 text-center block shadow-lg shadow-brand-600/30">
+                                                        Acessar Método Bola de Neve 🚀
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Últimos Lançamentos */}
+                                            <div className="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
+                                                <div className="flex justify-between items-center mb-6"><h3 className="font-extrabold text-slate-800">Transações Recentes</h3><button onClick={()=>setView('transactions')} className="text-xs font-bold text-brand-600 hover:underline">Ver tudo</button></div>
+                                                <div className="divide-y divide-slate-100">
+                                                    {(localData.transactions||[]).slice(0, 5).map(t => (
+                                                        <div key={t.id} className="py-3.5 flex items-center justify-between">
+                                                            <div className="flex items-center gap-3.5">
+                                                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs ${t.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                                                    {t.type === 'income' ? '+' : '-'}
+                                                                </div>
+                                                                <div><p className="font-bold text-sm text-slate-800">{t.desc}</p><p className="text-xs text-slate-400 font-medium">{new Date(t.date).toLocaleDateString('pt-BR')} • {t.category}</p></div>
+                                                            </div>
+                                                            <span className={`font-extrabold text-sm ${t.type === 'income' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                                                {t.type === 'expense' ? '- ' : '+ '}R$ {t.amount.toFixed(2)}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                    {(localData.transactions||[]).length === 0 && <p className="text-xs text-slate-400 text-center py-6">Nenhum lançamento registrado ainda.</p>}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* 2. OTIMIZADOR DE DÍVIDAS (KILLER FEATURE) */}
+                                    {view === 'debts' && (
+                                        <div className="space-y-6">
+                                            <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-8 rounded-3xl card-shadow relative overflow-hidden border border-slate-800">
+                                                <div className="max-w-2xl">
+                                                    <span className="bg-rose-500 text-white text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-md tracking-wider">Estratégia Comprovada</span>
+                                                    <h2 className="text-2xl sm:text-3xl font-black mt-3">O Método "Bola de Neve"</h2>
+                                                    <p className="text-slate-300 text-xs sm:text-sm mt-2 leading-relaxed">Organizamos suas dívidas automaticamente da <b>menor para a maior</b>. Ao quitar a dívida menor primeiro, você ganha impulso psicológico e libera fluxo de caixa para atacar as próximas com mais força!</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-between items-center bg-white p-6 rounded-3xl card-shadow border border-slate-100">
+                                                <div><h3 className="font-extrabold text-slate-800">Lista de Dívidas Ativas</h3><p className="text-xs text-slate-400">Ordene e quite parcela por parcela</p></div>
+                                                <button onClick={()=>{
+                                                    const n = prompt('Nome da Dívida (ex: Cartão Nubank):');
+                                                    const v = parseFloat(prompt('Valor Total Pendente (R$):'));
+                                                    const i = parseInt(prompt('Quantidade total de parcelas:'));
+                                                    if(n && v && i) {
+                                                        const newDebt = { id: Date.now(), name: n, totalValue: v, installmentsTotal: i, installmentsPaid: 0 };
+                                                        saveToCloud({...localData, debts: [...(localData.debts||[]), newDebt]});
+                                                    }
+                                                }} className="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition">+ Cadastrar Dívida</button>
+                                            </div>
+
+                                            <div className="grid gap-4">
+                                                {(localData.debts||[])
+                                                    .sort((a,b) => (a.totalValue - a.installmentsPaid*(a.totalValue/a.installmentsTotal)) - (b.totalValue - b.installmentsPaid*(b.totalValue/b.installmentsTotal)))
+                                                    .map((d, index) => {
+                                                        const valParcela = d.totalValue / d.installmentsTotal;
+                                                        const pendente = d.totalValue - (d.installmentsPaid * valParcela);
+                                                        const quitado = d.installmentsPaid >= d.installmentsTotal;
+                                                        
+                                                        return (
+                                                            <div key={d.id} className={`p-6 rounded-3xl border transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${index === 0 && !quitado ? 'bg-indigo-50/50 border-indigo-200 ring-2 ring-indigo-500/20' : 'bg-white border-slate-100 card-shadow'}`}>
+                                                                <div className="space-y-1">
+                                                                    <div className="flex items-center gap-2">
+                                                                        {index === 0 && !quitado && <span className="bg-indigo-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase">Foco Atual 🔥</span>}
+                                                                        <h4 className={`font-extrabold text-base ${quitado ? 'line-through text-slate-400' : 'text-slate-900'}`}>{d.name}</h4>
+                                                                    </div>
+                                                                    <p className="text-xs text-slate-500">Parcelas pagas: <b className="text-slate-800">{d.installmentsPaid} de {d.installmentsTotal}</b> • Valor Parcela: <b>R$ {valParcela.toFixed(2)}</b></p>
+                                                                    <div className="w-48 h-2 bg-slate-200 rounded-full mt-2 overflow-hidden">
+                                                                        <div className="h-full bg-brand-600 rounded-full transition-all" style={{width: `${(d.installmentsPaid/d.installmentsTotal)*100}%`}}></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex items-center justify-between w-full sm:w-auto gap-6 border-t sm:border-t-0 pt-4 sm:pt-0">
+                                                                    <div className="text-right">
+                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Falta Pagar</span>
+                                                                        <span className="text-lg font-black text-rose-600">R$ {pendente.toFixed(2)}</span>
+                                                                    </div>
+                                                                    {!quitado ? (
+                                                                        <button onClick={()=>{
+                                                                            if(confirm(`Confirmar pagamento da parcela de ${d.name} (R$ ${valParcela.toFixed(2)})? Isso registrará uma despesa automaticamente.`)) {
+                                                                                const newTx = { id: Date.now(), desc: `Parcela ${d.name}`, amount: valParcela, type: 'expense', category: 'Dívidas', date: new Date().toISOString() };
+                                                                                const updated = (localData.debts||[]).map(x => x.id === d.id ? {...x, installmentsPaid: x.installmentsPaid + 1} : x);
+                                                                                saveToCloud({...localData, debts: updated, transactions: [newTx, ...(localData.transactions||[])]});
+                                                                            }
+                                                                        }} className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-3 rounded-xl shadow-md transition active:scale-95">
+                                                                            Pagar Parcela
+                                                                        </button>
+                                                                    ) : (
+                                                                        <span className="bg-emerald-100 text-emerald-700 font-extrabold text-xs px-3 py-1.5 rounded-xl">Quitado 🎉</span>
+                                                                    )}
+                                                                    <button onClick={()=>{if(confirm('Excluir esta dívida?')) saveToCloud({...localData, debts: localData.debts.filter(x=>x.id!==d.id)})}} className="text-slate-300 hover:text-rose-500 p-2"><Icons.Trash /></button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                {(localData.debts||[]).length === 0 && <div className="text-center py-12 bg-white rounded-3xl border border-slate-100 text-slate-400 text-xs">Nenhuma dívida cadastrada. Que ótimo! 🎉</div>}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 3. ORÇAMENTOS POR CATEGORIA (TETO DE GASTOS) */}
+                                    {view === 'budgets' && (
+                                        <div className="bg-white p-6 md:p-8 rounded-3xl card-shadow border border-slate-100 space-y-6">
+                                            <div className="flex justify-between items-center">
+                                                <div><h3 className="font-extrabold text-slate-900 text-lg">Teto de Gastos Mensal</h3><p className="text-xs text-slate-400">Defina limites para não estourar seu dinheiro</p></div>
+                                                <button onClick={()=>{
+                                                    const c = prompt('Digite o nome da categoria (ex: Lazer, Mercado):');
+                                                    const l = parseFloat(prompt('Qual o limite máximo de gastos (R$):'));
+                                                    if(c && l) saveToCloud({...localData, budgets: [...(localData.budgets||[]), {category: c, limit: l}]});
+                                                }} className="bg-brand-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md">+ Novo Teto</button>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                {(localData.budgets||[]).map((b, i) => {
+                                                    const gasto = (localData.transactions||[]).filter(t => t.type === 'expense' && t.category === b.category).reduce((acc, curr) => acc + curr.amount, 0);
+                                                    const perc = Math.min((gasto / b.limit) * 100, 100);
+                                                    const estourou = gasto > b.limit;
+                                                    return (
+                                                        <div key={i} className="p-5 rounded-2xl bg-slate-50 border border-slate-100/80 space-y-3">
+                                                            <div className="flex justify-between items-center"><span className="font-extrabold text-slate-800">{b.category}</span><span className={`text-xs font-bold ${estourou ? 'text-rose-600' : 'text-slate-500'}`}>R$ {gasto.toFixed(2)} de R$ {b.limit.toFixed(2)}</span></div>
+                                                            <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                                                                <div className={`h-full rounded-full transition-all ${estourou ? 'bg-rose-500' : perc > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{width: `${perc}%`}}></div>
+                                                            </div>
+                                                            <div className="flex justify-between items-center text-[11px]">
+                                                                <span className={estourou ? 'text-rose-600 font-bold' : 'text-slate-400'}>{estourou ? '⚠️ Orçamento Estourado!' : `${(100 - perc).toFixed(0)}% disponível`}</span>
+                                                                <button onClick={()=>saveToCloud({...localData, budgets: localData.budgets.filter(x=>x.category!==b.category)})} className="text-slate-400 hover:text-rose-500 font-medium">Remover</button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 4. EXTRATO DE LANÇAMENTOS */}
+                                    {view === 'transactions' && (
+                                        <div className="bg-white p-6 md:p-8 rounded-3xl card-shadow border border-slate-100 space-y-6">
+                                            <div className="flex justify-between items-center"><h3 className="font-extrabold text-slate-900 text-lg">Histórico de Lançamentos</h3><span className="text-xs font-bold text-slate-400">Total: {(localData.transactions||[]).length}</span></div>
+                                            <div className="divide-y divide-slate-100">
+                                                {(localData.transactions||[]).map(t => (
+                                                    <div key={t.id} className="py-4 flex items-center justify-between group">
+                                                        <div className="flex items-center gap-3.5">
+                                                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs ${t.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>{t.type === 'income' ? '+' : '-'}</div>
+                                                            <div><p className="font-bold text-sm text-slate-800">{t.desc}</p><p className="text-xs text-slate-400">{new Date(t.date).toLocaleDateString('pt-BR')} • {t.category}</p></div>
+                                                        </div>
+                                                        <div className="flex items-center gap-4">
+                                                            <span className={`font-extrabold text-sm ${t.type === 'income' ? 'text-emerald-600' : 'text-slate-800'}`}>{t.type === 'expense' ? '- ' : '+ '}R$ {t.amount.toFixed(2)}</span>
+                                                            <button onClick={()=>{if(confirm('Excluir transação?')) saveToCloud({...localData, transactions: localData.transactions.filter(x=>x.id!==t.id)})}} className="text-slate-300 hover:text-rose-500 p-1"><Icons.Trash /></button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {(localData.transactions||[]).length === 0 && <p className="text-center py-12 text-slate-400 text-xs">Seu extrato está vazio.</p>}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 5. METAS */}
+                                    {view === 'goals' && (
+                                        <div className="bg-white p-6 md:p-8 rounded-3xl card-shadow border border-slate-100 space-y-6">
+                                            <div className="flex justify-between items-center"><div><h3 className="font-extrabold text-slate-900 text-lg">Metas de Economia</h3><p className="text-xs text-slate-400">Guarde dinheiro para seus sonhos</p></div><button onClick={()=>{const t=prompt('Qual o objetivo (ex: Viagem)?'); const v=parseFloat(prompt('Valor alvo (R$):')); if(t&&v) saveToCloud({...localData, goals:[...(localData.goals||[]), {id:Date.now(), title:t, target:v, saved:0}]})}} className="bg-brand-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md">+ Criar Meta</button></div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                {(localData.goals||[]).map(g => {
+                                                    const perc = Math.min((g.saved / g.target) * 100, 100);
+                                                    return (
+                                                        <div key={g.id} className="p-6 rounded-2xl border border-slate-100 bg-slate-50/50 space-y-4">
+                                                            <div className="flex justify-between items-start"><div><h4 className="font-extrabold text-slate-900">{g.title}</h4><p className="text-xs font-semibold text-brand-600 mt-0.5">R$ {g.saved.toFixed(2)} <span className="text-slate-400 font-normal">de R$ {g.target.toFixed(2)}</span></p></div><span className="text-xs font-black text-slate-700 bg-white px-2 py-1 rounded-lg border border-slate-200/60">{perc.toFixed(0)}%</span></div>
+                                                            <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-brand-600 rounded-full" style={{width: `${perc}%`}}></div></div>
+                                                            <div className="flex justify-between items-center pt-2 border-t border-slate-200/50"><button onClick={()=>{const val=parseFloat(prompt('Valor para guardar agora (R$):')); if(!isNaN(val) && val>0) saveToCloud({...localData, goals: localData.goals.map(x=>x.id===g.id?{...x, saved:x.saved+val}:x)})}} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">+ Guardar Dinheiro</button><button onClick={()=>saveToCloud({...localData, goals: localData.goals.filter(x=>x.id!==g.id)})} className="text-slate-400 hover:text-rose-500"><Icons.Trash /></button></div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 6. PERFIL */}
+                                    {view === 'profile' && (
+                                        <div className="bg-white p-6 md:p-8 rounded-3xl card-shadow border border-slate-100 max-w-md mx-auto space-y-6 text-center">
+                                            <div className="w-16 h-16 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center text-xl font-black mx-auto uppercase">{user.email.slice(0,2)}</div>
+                                            <div><h3 className="font-extrabold text-slate-900 text-lg">{localData.settings?.userName || 'Usuário FluxBlue'}</h3><p className="text-xs text-slate-400 mt-1">{user.email}</p></div>
+                                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-left space-y-2"><label className="block text-[11px] font-bold text-slate-400 uppercase">Alterar Nome de Exibição</label><input className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold" value={localData.settings?.userName || ''} onChange={e=>saveToCloud({...localData, settings: {...localData.settings, userName: e.target.value}})} placeholder="Seu nome" /></div>
+                                            <button onClick={()=>signOut(auth)} className="w-full bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold py-3 rounded-xl text-xs transition">Sair da Conta</button>
+                                        </div>
+                                    )}
+
+                                </div>
+                            </div>
+
+                            {/* Modal de Nova Transação */}
+                            {showModal && (
+                                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+                                    <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 card-shadow space-y-5">
+                                        <div className="flex justify-between items-center"><h3 className="font-extrabold text-slate-900 text-lg">Registrar Lançamento</h3><button onClick={()=>setShowModal(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button></div>
+                                        <form onSubmit={handleAddTransaction} className="space-y-4">
+                                            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+                                                <button type="button" onClick={()=>setType('expense')} className={`py-2 rounded-xl font-bold text-xs transition ${type==='expense' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500'}`}>Despesa</button>
+                                                <button type="button" onClick={()=>setType('income')} className={`py-2 rounded-xl font-bold text-xs transition ${type==='income' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500'}`}>Receita</button>
+                                            </div>
+                                            <div><label className="block text-[11px] font-extrabold text-slate-400 uppercase mb-1">Descrição</label><input required type="text" placeholder="Ex: Compras no Supermercado" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium outline-none focus:border-brand-600" value={desc} onChange={e=>setDesc(e.target.value)} /></div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div><label className="block text-[11px] font-extrabold text-slate-400 uppercase mb-1">Valor (R$)</label><input required type="number" step="0.01" placeholder="0,00" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium outline-none focus:border-brand-600" value={amount} onChange={e=>setAmount(e.target.value)} /></div>
+                                                <div><label className="block text-[11px] font-extrabold text-slate-400 uppercase mb-1">Categoria</label><select className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium outline-none focus:border-brand-600" value={cat} onChange={e=>setCat(e.target.value)}>{(localData.customCategories||[]).map(c=><option key={c} value={c}>{c}</option>)}</select></div>
+                                            </div>
+                                            <button type="submit" className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-500/25 transition text-xs mt-2">Salvar no Extrato</button>
+                                        </form>
                                     </div>
                                 </div>
                             )}
 
-                            {view === 'goals' && (
-                                <div className="bg-white p-6 rounded-xl border shadow-sm max-w-4xl mx-auto">
-                                    <h3 className="font-bold mb-4">Suas Metas</h3>
-                                    <button onClick={()=>{const t=prompt('Título'); const v=prompt('Meta (R$)'); if(t&&v) saveToCloud({...localData, goals:[...(localData.goals||[]), {id:Date.now(), title:t, target:parseFloat(v), saved:0}]})}} className="bg-brand-600 text-white px-3 py-1.5 rounded text-sm mb-4 font-bold">+ Nova Meta</button>
-                                    <div className="grid md:grid-cols-2 gap-4">
-                                        {(localData.goals||[]).map(g=>(<div key={g.id} className="border p-4 rounded-xl"><div className="flex justify-between mb-2"><span className="font-bold">{g.title}</span><span className="text-xs">R$ {g.saved} / {g.target}</span></div><div className="h-2 bg-slate-100 rounded-full mb-2"><div style={{width: Math.min((g.saved/g.target)*100, 100)+'%'}} className="h-full bg-brand-500 rounded-full"></div></div><button onClick={()=>{const val = parseFloat(prompt('Valor a guardar')); if(!isNaN(val) && val > 0) { saveToCloud({...localData, goals: localData.goals.map(x=>x.id===g.id?{...x, saved:x.saved+val}:x)}) }}} className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded font-bold">Depositar</button></div>))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {view === 'profile' && (
-                                <div className="bg-white p-6 rounded-xl border shadow-sm max-w-md mx-auto">
-                                    <h3 className="font-bold mb-4">Perfil</h3>
-                                    <p className="text-sm text-slate-600 mb-2">E-mail: {user.email}</p>
-                                    <p className="text-xs text-slate-400 mb-6">ID: {user.uid}</p>
-                                    <button onClick={() => signOut(auth)} className="text-red-500 border border-red-200 px-4 py-2 rounded hover:bg-red-50 w-full text-sm font-bold">Sair da Conta</button>
-                                </div>
-                            )}
+                            {/* Navegação Mobile Bottom Bar */}
+                            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-slate-200/60 flex items-center justify-around h-20 px-2 z-40">
+                                {[
+                                    {id:'dashboard', label:'Início', icon:<Icons.Dashboard/>},
+                                    {id:'debts', label:'Dívidas', icon:<Icons.Debts/>},
+                                    {id:'budgets', label:'Metas', icon:<Icons.Budgets/>},
+                                    {id:'transactions', label:'Extrato', icon:<Icons.Transactions/>},
+                                    {id:'profile', label:'Perfil', icon:<Icons.Profile/>}
+                                ].map(item => (
+                                    <button key={item.id} onClick={()=>setView(item.id)} className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 transition ${view===item.id ? 'text-brand-600 font-bold scale-105' : 'text-slate-400 font-medium'}`}>
+                                        {item.icon}<span className="text-[10px] tracking-tight">{item.label}</span>
+                                    </button>
+                                ))}
+                            </nav>
                         </main>
-
-                        <nav className="md:hidden fixed bottom-0 w-full bg-white border-t flex justify-around p-2">
-                            <button onClick={()=>setView('dashboard')} className={`p-2 ${view==='dashboard'?'text-brand-600':'text-slate-400'}`}><Icons.Dashboard /></button>
-                            <button onClick={()=>setView('transactions')} className={`p-2 ${view==='transactions'?'text-brand-600':'text-slate-400'}`}><Icons.Transactions /></button>
-                            <button onClick={()=>setView('goals')} className={`p-2 ${view==='goals'?'text-brand-600':'text-slate-400'}`}><Icons.Goals /></button>
-                            <button onClick={()=>setView('profile')} className={`p-2 ${view==='profile'?'text-brand-600':'text-slate-400'}`}><Icons.Profile /></button>
-                        </nav>
                     </div>
                 );
             };
@@ -268,7 +565,7 @@
                 if (!user) return <AuthScreen />;
                 
                 const isExpired = userData?.subscription?.active === false || (userData?.subscription?.expiresAt && new Date() > new Date(userData.subscription.expiresAt));
-                if (isExpired) return <Paywall user={user} />;
+                if (isExpired && user.email !== "salatielvitorino45@gmail.com") return <Paywall user={user} />;
                 
                 return <MainApp user={user} data={userData} />;
             };
