@@ -208,24 +208,20 @@
                 const totalExp = (localData.transactions||[]).filter(t=>t.type==='expense').reduce((a,b)=>a+b.amount,0);
                 const balance = totalInc - totalExp;
                 
-                // --- NOVOS CÁLCULOS DO MÊS ATUAL ---
-                const currentMonthPrefix = new Date().toISOString().slice(0, 7); // Ex: "2026-07"
+                // Cálculos do Mês Atual
+                const currentMonthPrefix = new Date().toISOString().slice(0, 7);
                 
-                // Gasto do mês atual
                 const monthlyExp = (localData.transactions||[])
                     .filter(t => t.type === 'expense' && t.date.slice(0, 7) === currentMonthPrefix)
                     .reduce((a,b) => a + b.amount, 0);
 
-                // Receita do mês atual
                 const monthlyInc = (localData.transactions||[])
                     .filter(t => t.type === 'income' && t.date.slice(0, 7) === currentMonthPrefix)
                     .reduce((a,b) => a + b.amount, 0);
 
-                // Dívidas/Parcelas previstas para vencer no mês (soma do valor de 1 parcela de cada dívida ativa)
                 const monthlyExpectedDebts = (localData.debts||[])
                     .filter(d => d.installmentsPaid < d.installmentsTotal)
                     .reduce((a, b) => a + (b.totalValue / b.installmentsTotal || 0), 0);
-                // ------------------------------------
                 
                 // Dívidas Totais e Quitado
                 const totalDebtValue = (localData.debts||[]).reduce((a,b)=>a + (b.totalValue || 0), 0);
@@ -695,4 +691,58 @@
                                             <div><label className="block text-[11px] font-extrabold text-slate-400 uppercase mb-1">Descrição</label><input required type="text" placeholder="Ex: Compras no Supermercado" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium outline-none focus:border-brand-600" value={desc} onChange={e=>setDesc(e.target.value)} /></div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div><label className="block text-[11px] font-extrabold text-slate-400 uppercase mb-1">Valor (R$)</label><input required type="number" step="0.01" placeholder="0,00" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium outline-none focus:border-brand-600" value={amount} onChange={e=>setAmount(e.target.value)} /></div>
-                                                <div><label className="block text-[11px] font-extrabold text-slate-400 uppercase mb-1">Categoria</label><select className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium outline-none focus:border-brand-600" value={cat} onChange={e=>setCat(e.target.value)}>{(localData.customCategories||[]).map(c=><option key={c} value={c}>{
+                                                <div><label className="block text-[11px] font-extrabold text-slate-400 uppercase mb-1">Categoria</label><select className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium outline-none focus:border-brand-600" value={cat} onChange={e=>setCat(e.target.value)}>{(localData.customCategories||[]).map(c=><option key={c} value={c}>{c}</option>)}</select></div>
+                                            </div>
+                                            <button type="submit" className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-500/25 transition text-xs mt-2">Salvar no Extrato</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Navegação Mobile */}
+                            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-slate-200/60 flex items-center justify-around h-20 px-2 z-40">
+                                {[
+                                    {id:'dashboard', label:'Início', icon:<Icons.Dashboard/>},
+                                    {id:'debts', label:'Dívidas', icon:<Icons.Debts/>},
+                                    {id:'budgets', label:'Metas', icon:<Icons.Budgets/>},
+                                    {id:'transactions', label:'Extrato', icon:<Icons.Transactions/>},
+                                    {id:'profile', label:'Perfil', icon:<Icons.Profile/>}
+                                ].map(item => (
+                                    <button key={item.id} onClick={()=>setView(item.id)} className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 transition ${view===item.id ? 'text-brand-600 font-bold scale-105' : 'text-slate-400 font-medium'}`}>
+                                        {item.icon}<span className="text-[10px] tracking-tight">{item.label}</span>
+                                    </button>
+                                ))}
+                            </nav>
+                        </main>
+                    </div>
+                );
+            };
+
+            const Root = () => {
+                const [user, setUser] = useState(null); const [userData, setUserData] = useState(null); const [loading, setLoading] = useState(true);
+                useEffect(() => {
+                    return onAuthStateChanged(auth, async (u) => {
+                        if (u) {
+                            setUser(u);
+                            onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'data', 'finance'), (s) => {
+                                if (s.exists()) setUserData(s.data());
+                                setLoading(false);
+                            });
+                        } else { setUser(null); setLoading(false); }
+                    });
+                }, []);
+                
+                if (loading) return <div className="h-screen flex items-center justify-center"><div className="loader"></div></div>;
+                if (!user) return <AuthScreen />;
+                
+                const isExpired = userData?.subscription?.active === false || (userData?.subscription?.expiresAt && new Date() > new Date(userData.subscription.expiresAt));
+                if (isExpired && user.email !== "salatielvitorino45@gmail.com") return <Paywall user={user} />;
+                
+                return <MainApp user={user} data={userData} />;
+            };
+            ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
+        }
+        if (window.FirebaseSDK) startApp(); else window.addEventListener('firebase-ready', startApp);
+    </script>
+</body>
+</html>
