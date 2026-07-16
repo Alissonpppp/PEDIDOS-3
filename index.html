@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FluxBlue - Gestão Financeira Inteligente</title>
+    <title>FluxBlue - Gestão Financeira Completa</title>
     
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -82,7 +82,7 @@
             incomeForecasts: [
                 { id: 1, source: 'Salário Principal', expectedAmount: 3000 }
             ],
-            customCategories: ['Casa', 'Mercado', 'Lazer', 'Saúde', 'Transporte', 'Salário', 'Investimento'],
+            customCategories: ['Casa', 'Mercado', 'Lazer', 'Saúde', 'Transporte', 'Salário', 'Investimento', 'Dívidas'],
             settings: { userName: 'Usuário' },
             subscription: { active: true, expiresAt: new Date(Date.now() + 7*24*60*60*1000).toISOString() }
         };
@@ -107,7 +107,7 @@
             const appId = 'fluxblue-prod-v6';
 
             const { useState, useEffect, useMemo } = React;
-            const { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } = window.Recharts || {};
+            const { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } = window.Recharts || {};
 
             const AuthScreen = () => {
                 const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
@@ -187,6 +187,12 @@
                 const [localData, setLocalData] = useState(data || DEFAULT_DATA);
                 const [showModal, setShowModal] = useState(false);
                 
+                // Filtros de Transações
+                const [filterType, setFilterType] = useState('all');
+                const [filterCat, setFilterCat] = useState('all');
+                const [searchTerm, setSearchTerm] = useState('');
+
+                // Modal Novo Lançamento
                 const [desc, setDesc] = useState(''); const [amount, setAmount] = useState('');
                 const [type, setType] = useState('expense'); const [cat, setCat] = useState('Casa');
 
@@ -197,12 +203,17 @@
                     await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'data', 'finance'), newData, { merge: true });
                 };
 
+                // Cálculos Gerais
                 const totalInc = (localData.transactions||[]).filter(t=>t.type==='income').reduce((a,b)=>a+b.amount,0);
                 const totalExp = (localData.transactions||[]).filter(t=>t.type==='expense').reduce((a,b)=>a+b.amount,0);
                 const balance = totalInc - totalExp;
                 
-                const totalDebts = (localData.debts||[]).reduce((a,b)=>a + Math.max(0, b.totalValue - (b.installmentsPaid * (b.totalValue/b.installmentsTotal))), 0);
+                // Dívidas Totais e Quitado
+                const totalDebtValue = (localData.debts||[]).reduce((a,b)=>a + (b.totalValue || 0), 0);
+                const totalDebtPaid = (localData.debts||[]).reduce((a,b)=>a + (b.installmentsPaid * (b.totalValue/b.installmentsTotal || 0)), 0);
+                const totalDebtsRemaining = Math.max(0, totalDebtValue - totalDebtPaid);
 
+                // Previsões de Renda
                 const totalExpectedIncome = (localData.incomeForecasts||[]).reduce((a,b)=>a+b.expectedAmount,0);
                 const projectedBalance = balance + totalExpectedIncome;
 
@@ -212,6 +223,7 @@
                     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
                 }, [localData.subscription]);
 
+                // Gráficos
                 const chartData = useMemo(() => {
                     const m = {};
                     (localData.transactions||[]).forEach(t => {
@@ -221,6 +233,15 @@
                     });
                     return Object.keys(m).sort().slice(-7).map(k => m[k]);
                 }, [localData.transactions]);
+
+                const debtChartData = useMemo(() => {
+                    return (localData.debts||[]).map(d => {
+                        const valParcela = d.totalValue / d.installmentsTotal;
+                        const pago = d.installmentsPaid * valParcela;
+                        const rest = Math.max(0, d.totalValue - pago);
+                        return { name: d.name, Quitado: pago, Restante: rest };
+                    });
+                }, [localData.debts]);
 
                 const handleAddTransaction = async (e) => {
                     e.preventDefault();
@@ -235,6 +256,14 @@
                     await saveToCloud({...localData, transactions: [newT, ...(localData.transactions||[])]});
                     alert(`R$ ${forecast.expectedAmount.toFixed(2)} lançados como receita real no seu extrato!`);
                 };
+
+                // Filtragem do Extrato
+                const filteredTransactions = (localData.transactions||[]).filter(t => {
+                    const matchesType = filterType === 'all' || t.type === filterType;
+                    const matchesCat = filterCat === 'all' || t.category === filterCat;
+                    const matchesSearch = t.desc.toLowerCase().includes(searchTerm.toLowerCase()) || t.category.toLowerCase().includes(searchTerm.toLowerCase());
+                    return matchesType && matchesCat && matchesSearch;
+                });
 
                 return (
                     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -308,7 +337,7 @@
                                                 </div>
                                                 <div className="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
                                                     <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Dívidas Ativas</span>
-                                                    <p className="text-2xl font-extrabold tracking-tight text-rose-600">R$ {totalDebts.toFixed(2)}</p>
+                                                    <p className="text-2xl font-extrabold tracking-tight text-rose-600">R$ {totalDebtsRemaining.toFixed(2)}</p>
                                                     <button onClick={()=>setView('debts')} className="text-[11px] font-bold text-brand-600 hover:underline mt-1 block">Plano Bola de Neve &rarr;</button>
                                                 </div>
                                             </div>
@@ -347,9 +376,45 @@
                                         </>
                                     )}
 
-                                    {/* 2. OTIMIZADOR DE DÍVIDAS COM AMORTIZAÇÃO */}
+                                    {/* 2. OTIMIZADOR DE DÍVIDAS COM GRÁFICO E AMORTIZAÇÃO */}
                                     {view === 'debts' && (
                                         <div className="space-y-6">
+                                            {/* Resumo Rápido de Dívidas */}
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <div className="bg-white p-5 rounded-3xl border border-slate-100 card-shadow">
+                                                    <span className="text-xs font-extrabold text-slate-400 uppercase">Total Financiado</span>
+                                                    <p className="text-2xl font-black text-slate-800 mt-1">R$ {totalDebtValue.toFixed(2)}</p>
+                                                </div>
+                                                <div className="bg-white p-5 rounded-3xl border border-slate-100 card-shadow">
+                                                    <span className="text-xs font-extrabold text-slate-400 uppercase">Valor Quitado</span>
+                                                    <p className="text-2xl font-black text-emerald-600 mt-1">R$ {totalDebtPaid.toFixed(2)}</p>
+                                                </div>
+                                                <div className="bg-white p-5 rounded-3xl border border-slate-100 card-shadow">
+                                                    <span className="text-xs font-extrabold text-slate-400 uppercase">Saldo Restante</span>
+                                                    <p className="text-2xl font-black text-rose-600 mt-1">R$ {totalDebtsRemaining.toFixed(2)}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Gráfico de Amortização das Dívidas */}
+                                            {debtChartData.length > 0 && (
+                                                <div className="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
+                                                    <h3 className="font-extrabold text-slate-800 text-base mb-1">Gráfico de Quitação das Dívidas</h3>
+                                                    <p className="text-xs text-slate-400 mb-6">Comparativo entre o valor já pago e o que falta quitar</p>
+                                                    <div className="h-60 w-full">
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <BarChart data={debtChartData} layout="vertical">
+                                                                <XAxis type="number" stroke="#94a3b8" fontSize={12} />
+                                                                <YAxis type="category" dataKey="name" stroke="#94a3b8" fontSize={12} width={100} />
+                                                                <Tooltip contentStyle={{backgroundColor: '#0f172a', borderRadius: '12px', border: 'none', color: '#fff', fontWeight: 'bold'}} />
+                                                                <Legend />
+                                                                <Bar dataKey="Quitado" fill="#10b981" radius={[0, 4, 4, 0]} stackId="a" />
+                                                                <Bar dataKey="Restante" fill="#f43f5e" radius={[0, 4, 4, 0]} stackId="a" />
+                                                            </BarChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-8 rounded-3xl card-shadow border border-slate-800">
                                                 <span className="bg-rose-500 text-white text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-md tracking-wider">Estratégia de Quitação</span>
                                                 <h2 className="text-2xl sm:text-3xl font-black mt-3">Amortização de Parcelas</h2>
@@ -495,12 +560,32 @@
                                         </div>
                                     )}
 
-                                    {/* 4. EXTRATO DE LANÇAMENTOS */}
+                                    {/* 4. EXTRATO DE LANÇAMENTOS COM FILTROS */}
                                     {view === 'transactions' && (
                                         <div className="bg-white p-6 md:p-8 rounded-3xl card-shadow border border-slate-100 space-y-6">
-                                            <div className="flex justify-between items-center"><h3 className="font-extrabold text-slate-900 text-lg">Histórico de Lançamentos</h3><span className="text-xs font-bold text-slate-400">Total: {(localData.transactions||[]).length}</span></div>
+                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                                <div><h3 className="font-extrabold text-slate-900 text-lg">Histórico de Lançamentos</h3><span className="text-xs font-bold text-slate-400">Exibindo: {filteredTransactions.length} transações</span></div>
+                                                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Buscar lançamento..." 
+                                                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-brand-600 flex-1 sm:w-40"
+                                                        value={searchTerm}
+                                                        onChange={e=>setSearchTerm(e.target.value)}
+                                                    />
+                                                    <select className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium focus:outline-none" value={filterType} onChange={e=>setFilterType(e.target.value)}>
+                                                        <option value="all">Todos os Tipos</option>
+                                                        <option value="income">Receitas (+)</option>
+                                                        <option value="expense">Despesas (-)</option>
+                                                    </select>
+                                                    <select className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium focus:outline-none" value={filterCat} onChange={e=>setFilterCat(e.target.value)}>
+                                                        <option value="all">Todas Categorias</option>
+                                                        {(localData.customCategories||[]).map(c=><option key={c} value={c}>{c}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
                                             <div className="divide-y divide-slate-100">
-                                                {(localData.transactions||[]).map(t => (
+                                                {filteredTransactions.map(t => (
                                                     <div key={t.id} className="py-4 flex items-center justify-between group">
                                                         <div className="flex items-center gap-3.5">
                                                             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs ${t.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>{t.type === 'income' ? '+' : '-'}</div>
@@ -512,7 +597,7 @@
                                                         </div>
                                                     </div>
                                                 ))}
-                                                {(localData.transactions||[]).length === 0 && <p className="text-center py-12 text-slate-400 text-xs">Seu extrato está vazio.</p>}
+                                                {filteredTransactions.length === 0 && <p className="text-center py-12 text-slate-400 text-xs">Nenhum lançamento encontrado para estes filtros.</p>}
                                             </div>
                                         </div>
                                     )}
