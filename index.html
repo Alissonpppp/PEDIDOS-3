@@ -182,11 +182,11 @@
                 </div>
             );
 
-            // COMPONENTE DO CHAT COM INTELIGÊNCIA ARTIFICIAL E CHAVE BLINDADA
-            const AIChatAssistant = ({ localData, saveToCloud }) => {
+            // COMPONENTE DO CHAT COM INTELIGÊNCIA ARTIFICIAL CONVERSACIONAL E FINANCEIRA
+            const AIChatAssistant = ({ localData, saveToCloud, balance, monthlyExp, monthlyInc, totalDebtsRemaining }) => {
                 const [isOpen, setIsOpen] = useState(false);
                 const [messages, setMessages] = useState([
-                    { id: 1, sender: 'bot', text: 'Olá! Sou o Flux AI 🤖. Digite um gasto (ex: "Almoço 35 no débito") ou anexe a foto de um cupom fiscal para eu registrar no seu extrato!' }
+                    { id: 1, sender: 'bot', text: 'Olá! Sou o Flux AI 🤖. Pode conversar comigo sobre suas contas, pedir conselhos financeiros OU mandar um gasto/foto de comprovante que eu anoto na hora!' }
                 ]);
                 const [input, setInput] = useState('');
                 const [loading, setLoading] = useState(false);
@@ -219,7 +219,6 @@
                     setLoading(true);
 
                     try {
-                        // Chave dividida e codificada em Base64 para proteção contra robôs de varredura
                         const _segredo = [
                             'QVEuQWI4Uk42TERSVXJQ', 
                             'S3QxOUFJMUo4RGt1R3J1', 
@@ -228,7 +227,32 @@
                         const API_KEY = atob(_segredo.join(''));
                         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
-                        const promptSistema = `Você é a IA financeira do aplicativo FluxBlue. Extraia os dados financeiros da mensagem ou da foto do cupom fiscal e retorne APENAS um objeto JSON válido sem formatação Markdown, no seguinte formato exato: {"desc": "Nome curto do local ou produto", "amount": 00.00, "type": "expense" ou "income", "category": "Casa", "Mercado", "Lazer", "Saúde", "Transporte", "Salário" ou "Outros", "botReply": "Uma resposta curta e amigável confirmando o valor e categoria registrados no app."}. Se não houver dados de gastos claros, responda com amount 0 e explique no botReply.`;
+                        // RESUMO EM TEMPO REAL DAS FINANÇAS DO USUÁRIO
+                        const historicoRecente = (localData.transactions || []).slice(0, 5)
+                            .map(t => `${t.desc}: R$ ${t.amount.toFixed(2)} (${t.type === 'income' ? 'Receita' : 'Despesa'})`).join(' | ');
+
+                        const promptSistema = `Você é o Flux AI, um consultor financeiro pessoal inteligente, empático e extremamente prestativo do aplicativo FluxBlue.
+
+DADOS REAIS DA CONTA DO USUÁRIO AGORA:
+- Saldo Atual: R$ ${balance.toFixed(2)}
+- Gasto no Mês Atual: R$ ${monthlyExp.toFixed(2)}
+- Receita no Mês Atual: R$ ${monthlyInc.toFixed(2)}
+- Total em Dívidas Restantes: R$ ${totalDebtsRemaining.toFixed(2)}
+- Últimos lançamentos: ${historicoRecente || 'Nenhum lançamento recente'}
+
+SUA MISSÃO EM DUAS FRENTES:
+1. MODO CONVERSA/CONSELHO: Se o usuário estiver fazendo perguntas ("como estão minhas contas?", "posso gastar hoje?", "dicas para economizar", "bom dia"): responda como um amigo especialista financeiro, analisando os DADOS REAIS acima. Seja caloroso, direto e humanizado no campo "botReply". Defina "isTransaction": false.
+2. MODO REGISTRO DE GASTO: Se o usuário digitar um gasto/receita ("Almoço 35", "Comprei pão por 10") OU enviar foto de comprovante/cupom fiscal: extraia o valor, defina "isTransaction": true e confirme com entusiasmo no "botReply".
+
+FORMATO EXATO DE RESPOSTA (Retorne APENAS um JSON válido, sem markdown ou crases):
+{
+  "isTransaction": true ou false,
+  "desc": "Nome do gasto ou produto (se for transação, senão deixe vazio)",
+  "amount": 00.00,
+  "type": "expense" ou "income",
+  "category": "Casa", "Mercado", "Lazer", "Saúde", "Transporte", "Salário", "Dívidas" ou "Outros",
+  "botReply": "Sua resposta conversacional humanizada, análise financeira OU confirmação de registro aqui."
+}`;
 
                         const partes = [{ text: `${promptSistema}\n\nMensagem do usuário: ${userMsg.text}` }];
 
@@ -255,10 +279,14 @@
                         const data = await response.json();
                         if (!response.ok) throw new Error(data.error?.message || 'Erro na API Gemini');
 
-                        const textoResposta = data.candidates[0].content.parts[0].text;
+                        // Limpeza de segurança caso a IA retorne markdown ```json ... ```
+                        let textoResposta = data.candidates[0].content.parts[0].text;
+                        textoResposta = textoResposta.replace(/```json/g, '').replace(/```/g, '').trim();
+                        
                         const iaResult = JSON.parse(textoResposta);
 
-                        if (iaResult.amount && Number(iaResult.amount) > 0) {
+                        // SE FOR UM GASTO REAL, SALVA NO BANCO DE DADOS
+                        if (iaResult.isTransaction && iaResult.amount && Number(iaResult.amount) > 0) {
                             const newTx = {
                                 id: Date.now(),
                                 desc: iaResult.desc || 'Gasto IA',
@@ -273,11 +301,12 @@
                             });
                         }
 
-                        setMessages(prev => [...prev, { id: Date.now()+1, sender: 'bot', text: iaResult.botReply || 'Pronto! Lançamento adicionado com sucesso!' }]);
+                        // EXIBE A RESPOSTA CONVERSACIONAL NO CHAT
+                        setMessages(prev => [...prev, { id: Date.now()+1, sender: 'bot', text: iaResult.botReply || 'Comprendido! Em que mais posso ajudar?' }]);
 
                     } catch (error) {
                         console.error("Erro na leitura da IA:", error);
-                        setMessages(prev => [...prev, { id: Date.now()+1, sender: 'bot', text: 'Opa, não consegui entender esse comprovante. Tente digitar o valor e o nome (ex: "Mercado 45")!' }]);
+                        setMessages(prev => [...prev, { id: Date.now()+1, sender: 'bot', text: 'Opa, tive uma pequena falha de conexão. Pode repetir a pergunta ou reformular o gasto?' }]);
                     } finally {
                         setLoading(false);
                     }
@@ -295,7 +324,7 @@
                                 <div className="bg-slate-900 text-white p-4 flex justify-between items-center">
                                     <div className="flex items-center gap-2">
                                         <span className="text-xl">🤖</span>
-                                        <div><h4 className="font-bold text-sm">Flux AI</h4><span className="text-[10px] text-emerald-400 font-semibold block">● Online (Gemini 1.5 Flash)</span></div>
+                                        <div><h4 className="font-bold text-sm">Flux AI</h4><span className="text-[10px] text-emerald-400 font-semibold block">● Consultor & Assistente</span></div>
                                     </div>
                                     <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white font-bold px-2 text-lg">✕</button>
                                 </div>
@@ -305,11 +334,11 @@
                                         <div key={m.id} className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}>
                                             <div className={`max-w-[85%] p-3 rounded-2xl ${m.sender === 'user' ? 'bg-brand-600 text-white rounded-br-none shadow-md' : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-none shadow-sm'}`}>
                                                 {m.image && <img src={m.image} alt="Anexo" className="w-full h-32 object-cover rounded-lg mb-2 border border-white/20" />}
-                                                <p className="leading-relaxed">{m.text}</p>
+                                                <p className="leading-relaxed whitespace-pre-line">{m.text}</p>
                                             </div>
                                         </div>
                                     ))}
-                                    {loading && <div className="text-brand-600 text-[11px] font-bold animate-pulse">⚡ Flux AI está lendo e calculando...</div>}
+                                    {loading && <div className="text-brand-600 text-[11px] font-bold animate-pulse">⚡ Flux AI está pensando e analisando...</div>}
                                 </div>
 
                                 {selectedImage && (
@@ -326,7 +355,7 @@
                                     </label>
                                     <input 
                                         type="text" 
-                                        placeholder="Ex: Almoço 35 ou mande foto..." 
+                                        placeholder="Pergunte sobre sua conta ou mande gasto..." 
                                         className="flex-1 bg-slate-100 border-none rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-800 font-medium"
                                         value={input}
                                         onChange={e => setInput(e.target.value)}
@@ -822,8 +851,15 @@
                                 </div>
                             </div>
 
-                            {/* RENDERIZAÇÃO DO ASSISTENTE IA NO CANTO DA TELA */}
-                            <AIChatAssistant localData={localData} saveToCloud={saveToCloud} />
+                            {/* RENDERIZAÇÃO DO ASSISTENTE IA NO CANTO DA TELA COM DADOS REAIS */}
+                            <AIChatAssistant 
+                                localData={localData} 
+                                saveToCloud={saveToCloud} 
+                                balance={balance}
+                                monthlyExp={monthlyExp}
+                                monthlyInc={monthlyInc}
+                                totalDebtsRemaining={totalDebtsRemaining}
+                            />
 
                             {/* Modal Novo Lançamento */}
                             {showModal && (
