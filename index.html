@@ -182,11 +182,11 @@
                 </div>
             );
 
-            // COMPONENTE DO CHAT COM INTELIGÊNCIA ARTIFICIAL CONVERSACIONAL E FINANCEIRA
+            // COMPONENTE DO CHAT BLINDADO E COM MODO CONVERSA ATIVO
             const AIChatAssistant = ({ localData, saveToCloud, balance, monthlyExp, monthlyInc, totalDebtsRemaining }) => {
                 const [isOpen, setIsOpen] = useState(false);
                 const [messages, setMessages] = useState([
-                    { id: 1, sender: 'bot', text: 'Olá! Sou o Flux AI 🤖. Pode conversar comigo sobre suas contas, pedir conselhos financeiros OU mandar um gasto/foto de comprovante que eu anoto na hora!' }
+                    { id: 1, sender: 'bot', text: 'Olá! Sou o Flux AI 🤖. Pode conversar comigo sobre suas finanças, pedir conselhos OU mandar um gasto/foto de comprovante que eu anoto no painel!' }
                 ]);
                 const [input, setInput] = useState('');
                 const [loading, setLoading] = useState(false);
@@ -227,31 +227,37 @@
                         const API_KEY = atob(_segredo.join(''));
                         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
-                        // RESUMO EM TEMPO REAL DAS FINANÇAS DO USUÁRIO
+                        // Formatação segura com fallback (0) para evitar que o código quebre se o saldo estiver carregando
+                        const sSaldo = (balance || 0).toFixed(2);
+                        const sGastoMes = (monthlyExp || 0).toFixed(2);
+                        const sRecMes = (monthlyInc || 0).toFixed(2);
+                        const sDiv = (totalDebtsRemaining || 0).toFixed(2);
+                        
                         const historicoRecente = (localData.transactions || []).slice(0, 5)
                             .map(t => `${t.desc}: R$ ${t.amount.toFixed(2)} (${t.type === 'income' ? 'Receita' : 'Despesa'})`).join(' | ');
 
-                        const promptSistema = `Você é o Flux AI, um consultor financeiro pessoal inteligente, empático e extremamente prestativo do aplicativo FluxBlue.
+                        const promptSistema = `Você é o Flux AI, um consultor financeiro inteligente, animado e prestativo integrado ao aplicativo FluxBlue.
 
-DADOS REAIS DA CONTA DO USUÁRIO AGORA:
-- Saldo Atual: R$ ${balance.toFixed(2)}
-- Gasto no Mês Atual: R$ ${monthlyExp.toFixed(2)}
-- Receita no Mês Atual: R$ ${monthlyInc.toFixed(2)}
-- Total em Dívidas Restantes: R$ ${totalDebtsRemaining.toFixed(2)}
+DADOS EM TEMPO REAL DA CONTA DO USUÁRIO AGORA:
+- Saldo Atual em Conta: R$ ${sSaldo}
+- Total Gasto no Mês Atual: R$ ${sGastoMes}
+- Total Recebido no Mês Atual: R$ ${sRecMes}
+- Dívidas Restantes a Quitar: R$ ${sDiv}
 - Últimos lançamentos: ${historicoRecente || 'Nenhum lançamento recente'}
 
-SUA MISSÃO EM DUAS FRENTES:
-1. MODO CONVERSA/CONSELHO: Se o usuário estiver fazendo perguntas ("como estão minhas contas?", "posso gastar hoje?", "dicas para economizar", "bom dia"): responda como um amigo especialista financeiro, analisando os DADOS REAIS acima. Seja caloroso, direto e humanizado no campo "botReply". Defina "isTransaction": false.
-2. MODO REGISTRO DE GASTO: Se o usuário digitar um gasto/receita ("Almoço 35", "Comprei pão por 10") OU enviar foto de comprovante/cupom fiscal: extraia o valor, defina "isTransaction": true e confirme com entusiasmo no "botReply".
+COMO SE COMPORTAR:
+1. SE O USUÁRIO ESTIVER APENAS CONVERSANDO ("como que ta minha situação", "pode me dar uma dica?", "oi", "dá pra sair hoje?"): Analise os números reais acima e responda no campo "botReply" como um excelente conselheiro financeiro, com tom amigável e encorajador. Mantenha "isTransaction" como false e "amount" como 0.
+2. SE O USUÁRIO DIGITAR UM GASTO/RECEITA ("Mercado 45", "Salário 2000") OU ENVIAR FOTO DE CUPOM: Extraia os valores, defina "isTransaction" como true, preencha os dados e confirme alegremente no "botReply".
 
-FORMATO EXATO DE RESPOSTA (Retorne APENAS um JSON válido, sem markdown ou crases):
+FORMATO OBRIGATÓRIO DE RESPOSTA:
+Você DEVE responder UNICAMENTE um objeto JSON estrito sem crases de formatação Markdown ou texto em volta:
 {
   "isTransaction": true ou false,
-  "desc": "Nome do gasto ou produto (se for transação, senão deixe vazio)",
+  "desc": "Nome curto do gasto (deixe vazio se for apenas conversa)",
   "amount": 00.00,
   "type": "expense" ou "income",
   "category": "Casa", "Mercado", "Lazer", "Saúde", "Transporte", "Salário", "Dívidas" ou "Outros",
-  "botReply": "Sua resposta conversacional humanizada, análise financeira OU confirmação de registro aqui."
+  "botReply": "Sua resposta conversacional analisando a situação financeira OU confirmando o registro."
 }`;
 
                         const partes = [{ text: `${promptSistema}\n\nMensagem do usuário: ${userMsg.text}` }];
@@ -277,15 +283,25 @@ FORMATO EXATO DE RESPOSTA (Retorne APENAS um JSON válido, sem markdown ou crase
                         });
 
                         const data = await response.json();
-                        if (!response.ok) throw new Error(data.error?.message || 'Erro na API Gemini');
-
-                        // Limpeza de segurança caso a IA retorne markdown ```json ... ```
-                        let textoResposta = data.candidates[0].content.parts[0].text;
-                        textoResposta = textoResposta.replace(/```json/g, '').replace(/```/g, '').trim();
                         
-                        const iaResult = JSON.parse(textoResposta);
+                        // Diagnóstico preciso caso a chave de API ou o Google Cloud devolva um erro real
+                        if (!response.ok) {
+                            const erroGoogle = data.error?.message || 'Erro de autorização no Google';
+                            console.error("Erro do Google Cloud:", data.error);
+                            throw new Error(`Google API: ${erroGoogle}`);
+                        }
 
-                        // SE FOR UM GASTO REAL, SALVA NO BANCO DE DADOS
+                        const textoResposta = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                        
+                        // Extrator seguro usando Regex: localiza o bloco JSON { ... } mesmo se a IA mandar texto extra em volta
+                        const matchJson = textoResposta.match(/\{[\s\S]*\}/);
+                        if (!matchJson) {
+                            throw new Error("Formato de resposta incompatível.");
+                        }
+                        
+                        const iaResult = JSON.parse(matchJson[0]);
+
+                        // Se for transação real, salva no Firebase e atualiza os gráficos do painel
                         if (iaResult.isTransaction && iaResult.amount && Number(iaResult.amount) > 0) {
                             const newTx = {
                                 id: Date.now(),
@@ -301,12 +317,15 @@ FORMATO EXATO DE RESPOSTA (Retorne APENAS um JSON válido, sem markdown ou crase
                             });
                         }
 
-                        // EXIBE A RESPOSTA CONVERSACIONAL NO CHAT
-                        setMessages(prev => [...prev, { id: Date.now()+1, sender: 'bot', text: iaResult.botReply || 'Comprendido! Em que mais posso ajudar?' }]);
+                        setMessages(prev => [...prev, { id: Date.now()+1, sender: 'bot', text: iaResult.botReply || 'Compreendido! Como posso te ajudar agora?' }]);
 
                     } catch (error) {
-                        console.error("Erro na leitura da IA:", error);
-                        setMessages(prev => [...prev, { id: Date.now()+1, sender: 'bot', text: 'Opa, tive uma pequena falha de conexão. Pode repetir a pergunta ou reformular o gasto?' }]);
+                        console.error("Erro detalhado do Flux AI:", error);
+                        let msgErro = 'Opa, tive uma instabilidade momentânea na conexão. Pode repetir?';
+                        if (error.message.includes('Google API')) {
+                            msgErro = `⚠️ Aviso do Sistema: ${error.message} (Verifique se há restrições de domínio ou cota excedida na sua chave API do Google).`;
+                        }
+                        setMessages(prev => [...prev, { id: Date.now()+1, sender: 'bot', text: msgErro }]);
                     } finally {
                         setLoading(false);
                     }
@@ -338,7 +357,7 @@ FORMATO EXATO DE RESPOSTA (Retorne APENAS um JSON válido, sem markdown ou crase
                                             </div>
                                         </div>
                                     ))}
-                                    {loading && <div className="text-brand-600 text-[11px] font-bold animate-pulse">⚡ Flux AI está pensando e analisando...</div>}
+                                    {loading && <div className="text-brand-600 text-[11px] font-bold animate-pulse">⚡ Flux AI está analisando seus dados...</div>}
                                 </div>
 
                                 {selectedImage && (
@@ -355,7 +374,7 @@ FORMATO EXATO DE RESPOSTA (Retorne APENAS um JSON válido, sem markdown ou crase
                                     </label>
                                     <input 
                                         type="text" 
-                                        placeholder="Pergunte sobre sua conta ou mande gasto..." 
+                                        placeholder="Converse ou mande um gasto..." 
                                         className="flex-1 bg-slate-100 border-none rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-800 font-medium"
                                         value={input}
                                         onChange={e => setInput(e.target.value)}
@@ -851,7 +870,7 @@ FORMATO EXATO DE RESPOSTA (Retorne APENAS um JSON válido, sem markdown ou crase
                                 </div>
                             </div>
 
-                            {/* RENDERIZAÇÃO DO ASSISTENTE IA NO CANTO DA TELA COM DADOS REAIS */}
+                            {/* ASSISTENTE IA NO CANTO DA TELA COM DADOS REAIS */}
                             <AIChatAssistant 
                                 localData={localData} 
                                 saveToCloud={saveToCloud} 
